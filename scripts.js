@@ -11,6 +11,9 @@ const addressWarn = document.getElementById("address-warn")
 const paymentMethodInput = document.getElementById("payment-method")
 const paymentWarn = document.getElementById("payment-warn")
 const nomeCliente = document.getElementById("customer-name-client")
+const nameWarn = document.getElementById("name-warn")
+const nameInput = document.getElementById("customer-name-client")
+const countItensTotal = document.getElementById("count-itens")
 
 let cart = [];
 
@@ -47,6 +50,22 @@ menu.addEventListener("click", function (event) {
 
 // função para adicionar ao carrinho 
 function addToCart(name, price) {
+
+    const isOpen = checkRestauranteOpen();
+    if (!isOpen) {
+        Toastify({
+            text: "Ops! O restaurante está fechado no momento. Horário de funcionamento: das 11:00 às 16:00 de Segunda a Sábado.",
+            duration: 3000,
+            close: true,
+            gravity: "top", // `top` or `bottom`
+            position: "right", // `left`, `center` or `right`
+            stopOnFocus: true, // Prevents dismissing of toast on hover
+            style: {
+                background: "#dc2626",
+            },
+        }).showToast();
+        return;
+    };
 
     const existItem = cart.find(item => item.name === name)
     if (existItem) {
@@ -87,21 +106,25 @@ function updateCartModal() {
         const cartItemElement = document.createElement("div");
         cartItemElement.classList.add("flex", "justify-between", "flex-col", "mb-6");
         cartItemElement.innerHTML = `
-        
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="font-medium">${item.name}</p>
-                <p>Quant. ${item.quantity}</p>
-                <p class="font-medium mt-2">R$ ${item.price.toFixed(2)}</p>
+       
+            <div class="flex items-center justify-between border rounded-xl border-black p-2">
+                <div class="w-full">
+                    <div class="flex justify-between items-center">
+                        <p class="font-medium">${item.name}</p>
+                        <p class="font-medium mt-2">R$ ${item.price.toFixed(2)}</p>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <p>Quant. ${item.quantity}</p>
+                         <button class="remove-from-cart-btn text-red-500" data-name="${item.name}">
+                             Remover
+                         </button>   
+                    </div>
+                </div>
+
+
+               
             </div>
-
-
-            <button class="remove-from-cart-btn text-red-500" data-name="${item.name}">
-                Remover
-            </button> 
-        </div>
-
-
+    
         `
 
         total += item.price * item.quantity;
@@ -116,6 +139,7 @@ function updateCartModal() {
     });
 
     cartCounter.innerHTML = cart.length;
+    countItensTotal.innerHTML = cart.reduce((total, item) => total + item.quantity, 0);
 }
 
 
@@ -161,6 +185,15 @@ paymentMethodInput.addEventListener("input", function (event) {
     }
 });
 
+nameInput.addEventListener("input", function (event) {
+    let inputValue = event.target.value;
+    if (inputValue !== "") {
+        nameWarn.classList.add("hidden");
+        nameInput.classList.remove("border-red-500");
+
+    }
+});
+
 
 // Finalizar pedido
 checkoutBtn.addEventListener("click", function () {
@@ -182,10 +215,24 @@ checkoutBtn.addEventListener("click", function () {
         return;
     };
 
-    if (cart.length === 0) return;
-    if (addressInput.value === "") {
-        addressWarn.classList.remove("hidden");
-        addressInput.classList.add("border-red-500");
+    if (cart.length === 0) {
+        Toastify({
+            text: "Seu carrinho está vazio, adicione itens para finalizar.",
+            duration: 3000,
+            close: true,
+            gravity: "top", // `top` or `bottom`
+            position: "right", // `left`, `center` or `right`
+            stopOnFocus: true, // Prevents dismissing of toast on hover
+            style: {
+                background: "#dc2626",
+            },
+        }).showToast();
+        return;
+    }
+
+    if (nameInput.value === "") {
+        nameWarn.classList.remove("hidden");
+        nameInput.classList.add("border-red-500");
         return;
     }
     if (paymentMethodInput.value === "") {
@@ -193,6 +240,15 @@ checkoutBtn.addEventListener("click", function () {
         paymentMethodInput.classList.add("border-red-500");
         return;
     }
+    if (addressInput.value === "") {
+        addressWarn.classList.remove("hidden");
+        addressInput.classList.add("border-red-500");
+        return;
+    }
+
+
+
+
 
     // enviar o pedido para o whatsapp
 
@@ -202,16 +258,21 @@ checkoutBtn.addEventListener("click", function () {
         )
     }).join("");
 
-    const message = encodeURIComponent(cartItems)
-    const phone = "5511939591754"
-    const formaDePagamento = paymentMethodInput.value;
-    const identificacaoCliente = nomeCliente.value;
+
+
+    // transformar todas as informações em MAIÚSCULAS antes de enviar
+    const message = encodeURIComponent(cartItems.toUpperCase());
+    const phone = "5511939591754";
+    const formaDePagamento = paymentMethodInput.value.toUpperCase();
+    const identificacaoCliente = nomeCliente.value.toUpperCase();
+    // transformar o endereço no input pra maiúsculas também (o window.open usa addressInput.value)
+    addressInput.value = addressInput.value.toUpperCase();
+
     let totalCompra = cart.reduce((total, item) => total + item.price * item.quantity, 0);
     totalCompra = totalCompra.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     window.open(`https://wa.me/${phone}?text=Olá, estou vindo do seu Cardápio online, me chamo ${identificacaoCliente} %0A%0AGostaria de fazer o pedido de: %0A%0A${message} %0AValor total: R$ ${totalCompra} %0A%0AForma de pagamento: ${formaDePagamento} %0A%0AEndereço de entrega: ${addressInput.value}`, "_blank");
-    cart = [];
-    updateCartModal();
+
 });
 
 
